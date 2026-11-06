@@ -1865,6 +1865,15 @@ class EAGLEWorkerV2(BaseSpecWorker):
             finally:
                 target_model_runner.init_new_workspace = backup_init
 
+            # Boot wires the runner's RunnerIds onto its attention backend
+            # (ModelRunner.init_attention_backends); a rebuild for an adaptive
+            # step must carry the same hook, or model-layer producers reading
+            # get_attn_backend().runner_ids (e.g. the PLE batch preparation)
+            # hit a None attribute during the per-step graph capture.
+            target_model_runner.runner_ids.bind_and_verify_backends(
+                [target_attn_backend]
+            )
+
             target_graph_runner = None
             TargetGraphRunnerCls = None
             if not check_cuda_graph_backend(Phase.DECODE, Backend.DISABLED):
